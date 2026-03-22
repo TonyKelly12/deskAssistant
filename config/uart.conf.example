@@ -1,0 +1,13 @@
+# UART configuration for Pi Zero 2 ↔ ESP32
+# Copy to /etc/desk-assistant/uart.conf or set environment variables
+
+# Serial device:
+#   /dev/ttyS0 or /dev/ttyAMA0 - Pi hardware UART (GPIO14/15)
+#   /dev/ttyUSB0 - USB-serial adapter (e.g. ESP32 connected via USB)
+UART_DEVICE=/dev/ttyS0
+UART_BAUD=115200
+
+# Topic prefix for messages from ESP32
+# Messages from UART publish to: esp32/<topic>
+# MQTT messages to esp32/* are forwarded to UART
+UART_TOPIC_PREFIX=esp32

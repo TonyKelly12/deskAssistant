@@ -1,0 +1,14 @@
+[Unit]
+Description=DeskAssistant MQTT Client
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/desk_assistant
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=-/etc/desk-assistant/env
+
+[Install]
+WantedBy=multi-user.target

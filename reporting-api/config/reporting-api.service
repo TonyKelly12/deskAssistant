@@ -1,0 +1,16 @@
+[Unit]
+Description=DeskAssistant Reporting API
+After=network.target mosquitto.service
+Wants=mosquitto.service
+
+[Service]
+Type=simple
+# Copy reporting-api/ to this path, or change to your install location
+WorkingDirectory=/opt/desk-assistant/reporting-api
+ExecStart=/usr/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=10
+EnvironmentFile=-/etc/desk-assistant/reporting-api.env
+
+[Install]
+WantedBy=multi-user.target

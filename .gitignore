@@ -1,0 +1,23 @@
+# Python
+reporting-api/__pycache__/
+reporting-api/.venv/
+*.pyc
+
+# Build
+build/
+build-*/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.out
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db

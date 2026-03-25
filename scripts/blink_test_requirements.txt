@@ -1,0 +1,3 @@
+# For Pi Zero 2 blink test: pip install -r scripts/blink_test_requirements.txt
+# RPi.GPIO comes with Raspberry Pi OS
+pyserial>=3.5

@@ -1,0 +1,9 @@
+# Raspberry Pi: use inside a venv (avoids PEP 668 "externally-managed-environment").
+# Run: bash scripts/setup_display_venv_pi.sh
+
+numpy
+pillow
+spidev
+RPi.GPIO
+# GC9A01 driver (not on PyPI):
+git+https://github.com/charliebruce/gc9a01-python.git#subdirectory=library

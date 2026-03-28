@@ -1,0 +1,49 @@
+Pushing bot_brain to a headless Pi Zero (from your PC)
+=======================================================
+
+Prereqs on the Pi
+-----------------
+- SSH enabled (Pi Imager: enable SSH, or add empty file "ssh" on boot partition).
+- On Wi‑Fi: configure in Imager or add wpa_supplicant.conf to boot.
+- Know the address: raspberrypi.local (mDNS) or an IP from your router.
+
+One-time: SSH login works
+-------------------------
+  ssh pi@raspberrypi.local
+  # or: ssh pi@192.168.1.42
+
+Copy the whole bot_brain folder (recommended)
+-----------------------------------------------
+From this repo root on your PC (replace HOST):
+
+  rsync -avz pi/bot_brain/ pi@HOST:~/bot_brain/
+
+Or with scp:
+
+  scp -r pi/bot_brain pi@HOST:~/
+
+Run on the Pi
+-------------
+  ssh pi@HOST
+  cd ~/bot_brain
+  python3 main.py
+
+If you use a venv for hardware libs later, activate it first, then python3 main.py.
+
+Alternative: git clone on the Pi
+--------------------------------
+If the repo is on GitHub/GitLab:
+
+  ssh pi@HOST
+  sudo apt update && sudo apt install -y git
+  git clone <YOUR_REPO_URL> deskAssistant
+  cd deskAssistant/pi/bot_brain
+  python3 main.py
+
+Troubleshooting "can't push"
+----------------------------
+- Ping or ssh must work first; fix network/SSH before scp/rsync.
+- Windows: use PowerShell scp, WinSCP, or WSL rsync.
+- Permission denied (publickey): add your PC's SSH public key to ~/.ssh/authorized_keys on the Pi,
+  or enable password auth in sshd_config (less ideal).
+- rsync not installed on Windows: use scp -r instead.

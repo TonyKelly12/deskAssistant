@@ -16,11 +16,17 @@ Wiring (3V3 logic):
 
 Enable SPI: sudo raspi-config -> Interface Options -> SPI -> Enable
 
-Dependencies (on the Pi):
-  pip3 install spidev RPi.GPIO numpy pillow
-  pip3 install "git+https://github.com/charliebruce/gc9a01-python.git#subdirectory=library"
+Dependencies (on the Pi): Debian/Raspberry Pi OS often blocks system-wide pip (PEP 668).
+Use a venv instead of pip3 install ... globally:
 
-If that git install fails, clone the repo and: pip3 install ./gc9a01-python/library
+  bash scripts/setup_display_venv_pi.sh
+  source .venv-display/bin/activate
+  python3 scripts/spi_display_scaffold.py
+
+Manual equivalent: python3 -m venv .venv-display && source .venv-display/bin/activate
+  && pip install -r scripts/requirements-display-pi.txt
+
+Last resort (not recommended): pip install --break-system-packages ...
 """
 from __future__ import annotations
 
@@ -41,9 +47,10 @@ def _make_display(rotation: int, spi_hz: int):
         from GC9A01 import GC9A01
     except ImportError as e:
         print(
-            "Could not import GC9A01. Install:\n"
-            "  pip3 install spidev RPi.GPIO numpy pillow\n"
-            '  pip3 install "git+https://github.com/charliebruce/gc9a01-python.git#subdirectory=library"',
+            "Could not import GC9A01. On the Pi, use a venv (avoids PEP 668):\n"
+            "  bash scripts/setup_display_venv_pi.sh\n"
+            "  source .venv-display/bin/activate\n"
+            "  python3 scripts/spi_display_scaffold.py",
             file=sys.stderr,
         )
         raise SystemExit(1) from e

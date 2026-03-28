@@ -1,6 +1,7 @@
 # Python
 reporting-api/__pycache__/
 reporting-api/.venv/
+.venv-display/
 *.pyc
 
 # Build

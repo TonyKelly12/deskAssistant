@@ -1,0 +1,69 @@
+Faster workflow: Windows + Linux dev machines -> Pi Zero
+==========================================================
+
+Why SSH feels slow
+------------------
+Pi Zero is weak CPU + Wi‑Fi; interactive shells lag. Prefer: edit locally, sync or
+git in one shot, then run a quick non-interactive command over SSH.
+
+1) Git (best if you use GitHub/GitLab from both OSes)
+-----------------------------------------------------
+On the Pi once:
+
+  cd ~
+  git clone <YOUR_REPO_URL> deskAssistant
+
+After edits on Windows or Linux:
+
+  git add / commit / push   (from either machine)
+
+On the Pi:
+
+  cd ~/deskAssistant && git pull
+  python3 pi/bot_brain/main.py
+
+No per-file SCP; only deltas transfer. Same repo path on every machine.
+
+2) Incremental rsync (Linux / macOS / WSL)
+------------------------------------------
+From repo root:
+
+  export PI=pi@192.168.1.42
+  bash pi/sync_to_pi.sh
+
+First sync sends everything; later runs only send changed files. Use WSL on
+Windows if you do not have rsync on native Windows.
+
+3) Windows without WSL: PowerShell + tar over SSH
+-------------------------------------------------
+From repo root in PowerShell:
+
+  $env:PI = "pi@192.168.1.42"
+  .\pi\sync_to_pi.ps1
+
+This replaces ~/bot_brain on the Pi with a fresh copy of your local bot_brain.
+
+4) SSH connection reuse (speeds repeated commands)
+--------------------------------------------------
+Add to ~/.ssh/config on each dev machine:
+
+  Host pizero
+    HostName 192.168.1.42
+    User pi
+    ControlMaster auto
+    ControlPath ~/.ssh/cm-%r@%h:%p
+    ControlPersist 5m
+
+Then:
+
+  export PI=pizero
+  bash pi/sync_to_pi.sh
+
+First SSH opens the tunnel; the next rsync/ssh reuses it (snappier).
+
+5) Optional: edit on Pi with Cursor/VS Code
+-------------------------------------------
+Remote-SSH opens files on the Pi — handy for quick fixes, often feels sluggish
+on a Zero. Many people still prefer local edit + sync/git.
+
+Legacy: pi/install_bot_brain.sh still works; it calls the same rsync as sync_to_pi.sh.

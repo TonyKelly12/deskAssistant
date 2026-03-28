@@ -1,5 +1,6 @@
 Pushing bot_brain to a headless Pi Zero (from your PC)
 =======================================================
+See pi/DEV_SYNC.txt for Windows + Linux, faster rsync, git pull on Pi, SSH multiplexing.
 
 Prereqs on the Pi
 -----------------

@@ -19,12 +19,12 @@ Enable SPI: sudo raspi-config -> Interface Options -> SPI -> Enable
 Dependencies (on the Pi): Debian/Raspberry Pi OS often blocks system-wide pip (PEP 668).
 Use a venv instead of pip3 install ... globally:
 
-  bash scripts/setup_display_venv_pi.sh
+  bash pi/scripts/setup_display_venv_pi.sh
   source .venv-display/bin/activate
-  python3 scripts/spi_display_scaffold.py
+  python3 pi/scripts/spi_display_scaffold.py
 
 Manual equivalent: python3 -m venv .venv-display && source .venv-display/bin/activate
-  && pip install -r scripts/requirements-display-pi.txt
+  && pip install -r pi/scripts/requirements-display-pi.txt
 
 Last resort (not recommended): pip install --break-system-packages ...
 """
@@ -48,9 +48,9 @@ def _make_display(rotation: int, spi_hz: int):
     except ImportError as e:
         print(
             "Could not import GC9A01. On the Pi, use a venv (avoids PEP 668):\n"
-            "  bash scripts/setup_display_venv_pi.sh\n"
+            "  bash pi/scripts/setup_display_venv_pi.sh\n"
             "  source .venv-display/bin/activate\n"
-            "  python3 scripts/spi_display_scaffold.py",
+            "  python3 pi/scripts/spi_display_scaffold.py",
             file=sys.stderr,
         )
         raise SystemExit(1) from e

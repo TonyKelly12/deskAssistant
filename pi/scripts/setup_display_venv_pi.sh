@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Create a venv and install GC9A01 display deps (fixes PEP 668 on Pi OS / Debian).
 # Run on the Raspberry Pi from the repo root:
-#   bash scripts/setup_display_venv_pi.sh
+#   bash pi/scripts/setup_display_venv_pi.sh
 # Then:
 #   source .venv-display/bin/activate
-#   python3 scripts/spi_display_scaffold.py
+#   python3 pi/scripts/spi_display_scaffold.py
 
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -22,4 +22,4 @@ python -m pip install -r scripts/requirements-display-pi.txt
 
 echo
 echo "Done. Activate with:  source $ROOT/.venv-display/bin/activate"
-echo "Run scaffold with:    python3 scripts/spi_display_scaffold.py"
+echo "Run scaffold with:    python3 pi/scripts/spi_display_scaffold.py"

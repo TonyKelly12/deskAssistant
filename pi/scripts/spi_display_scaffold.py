@@ -11,8 +11,13 @@ Wiring (3V3 logic):
   SCL  -> GPIO11 / SPI0 SCLK (pin 23)
   SDA  -> GPIO10 / SPI0 MOSI (pin 19)
   DC   -> GPIO24 (pin 18)
-  CS   -> GPIO8  / SPI0 CE0 (pin 24)
   RST  -> GPIO25 (pin 22)
+  CS   -> DO NOT CONNECT (leave floating)
+
+NOTE on CS: The Yeluft GC9A01 board has CS tied permanently LOW internally,
+meaning the display is always selected. Connecting CS to GPIO8 (SPI0 CE0)
+causes the Pi's SPI hardware to pull CS HIGH when idle, which deselects the
+display and prevents it from receiving data. Leave CS disconnected.
 
 Enable SPI: sudo raspi-config -> Interface Options -> SPI -> Enable
 

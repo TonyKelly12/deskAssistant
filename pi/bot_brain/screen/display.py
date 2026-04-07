@@ -1,5 +1,5 @@
 """
-GC9A01 240x240 round display driver with eye animation.
+GC9A01 240x240 round display driver with emotion-driven eye animations.
 
 Wiring (Yeluft board):
   VCC -> Pi 3V3 (pin 1)
@@ -13,16 +13,22 @@ Wiring (Yeluft board):
 from __future__ import annotations
 
 import time
+import threading
 import spidev
 import RPi.GPIO as GPIO
+import numpy as np
 from PIL import Image, ImageDraw
 
-WIDTH  = 240
-HEIGHT = 240
-DC     = 24
-RST    = 25
+from screen.animations import EyeStyle, get_style
+
+WIDTH    = 240
+HEIGHT   = 240
+DC       = 24
+RST      = 25
 SPI_PORT = 0
 SPI_CS   = 0
+CX       = WIDTH // 2
+CY       = HEIGHT // 2
 
 
 class Screen:
@@ -30,6 +36,8 @@ class Screen:
         self._spi_hz = spi_hz
         self._spi: spidev.SpiDev | None = None
         self._ready = False
+        self._current_style: EyeStyle = get_style("neutral")
+        self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Setup / teardown
@@ -61,7 +69,41 @@ class Screen:
         return self._ready
 
     # ------------------------------------------------------------------
-    # Drawing
+    # Emotion integration
+    # ------------------------------------------------------------------
+
+    def set_emotion(self, emotion: str) -> None:
+        """
+        Switch to the eye style for a given emotion.
+        Plays a smooth transition then holds the new style.
+        """
+        new_style = get_style(emotion)
+        with self._lock:
+            old_style = self._current_style
+            self._current_style = new_style
+        self._transition(old_style, new_style)
+
+    def run_emotion_loop(self, engine) -> None:
+        """
+        Main display loop driven by an EmotionEngine.
+        Registers an on_change callback and runs the eye animation
+        for the current emotion until KeyboardInterrupt.
+
+        engine: EmotionEngine instance (already started)
+        """
+        engine.on_change(lambda old, new, s: self.set_emotion(new))
+        self.set_emotion(engine.get_state().current)
+
+        try:
+            while True:
+                with self._lock:
+                    style = self._current_style
+                self._run_blink_cycle(style)
+        except KeyboardInterrupt:
+            pass
+
+    # ------------------------------------------------------------------
+    # Low-level animation
     # ------------------------------------------------------------------
 
     def show(self, image: Image.Image) -> None:
@@ -70,7 +112,6 @@ class Screen:
             raise RuntimeError("Screen not set up — call setup() first")
         self._set_window()
         self._cmd(0x2C)
-        import numpy as np
         arr = np.array(image.convert("RGB"), dtype=np.uint8)
         r = arr[:, :, 0].astype(np.uint16)
         g = arr[:, :, 1].astype(np.uint16)
@@ -86,91 +127,134 @@ class Screen:
         for i in range(0, len(data), 4096):
             self._spi.xfer2(data[i:i + 4096])
 
-    # ------------------------------------------------------------------
-    # Eye animation
-    # ------------------------------------------------------------------
-
-    def blink(self, fps: int = 24) -> None:
-        """Play one blink animation (open -> close -> open)."""
-        frames = self._build_blink_frames()
-        delay = 1.0 / fps
-        for frame in frames:
-            self.show(frame)
+    def blink(self, style: EyeStyle | None = None) -> None:
+        """Play one blink animation using the given or current style."""
+        with self._lock:
+            s = style or self._current_style
+        steps = [0.0, 0.25, 0.6, 0.9, 1.0, 0.9, 0.6, 0.25, 0.0]
+        delay = 1.0 / s.blink_speed
+        for ratio in steps:
+            self.show(self._draw_eye(s, extra_close=ratio))
             time.sleep(delay)
 
-    def run_eyes(self, blink_interval: float = 3.0) -> None:
-        """
-        Loop forever: hold open eye, blink periodically.
-        Call from a thread or main loop. Exits on KeyboardInterrupt.
-        """
-        open_frame = self._draw_eye(0.0)
-        self.show(open_frame)
-        last_blink = time.monotonic()
-        try:
-            while True:
-                now = time.monotonic()
-                if now - last_blink >= blink_interval:
-                    self.blink()
-                    last_blink = time.monotonic()
-                    self.show(open_frame)
-                time.sleep(0.05)
-        except KeyboardInterrupt:
-            pass
+    # ------------------------------------------------------------------
+    # Internal: animation helpers
+    # ------------------------------------------------------------------
+
+    def _run_blink_cycle(self, style: EyeStyle) -> None:
+        """Show open eye, wait blink_interval, then blink once."""
+        self.show(self._draw_eye(style))
+        deadline = time.monotonic() + style.blink_interval
+        while time.monotonic() < deadline:
+            # Check if style changed mid-wait
+            with self._lock:
+                if self._current_style is not style:
+                    return
+            time.sleep(0.05)
+        self.blink(style)
+
+    def _transition(self, old: EyeStyle, new: EyeStyle, frames: int = 8) -> None:
+        """Crossfade between two eye styles."""
+        for i in range(frames + 1):
+            t = i / frames
+            blended = self._blend_styles(old, new, t)
+            self.show(self._draw_eye(blended))
+            time.sleep(1 / 30)
+
+    def _blend_styles(self, a: EyeStyle, b: EyeStyle, t: float) -> EyeStyle:
+        """Linearly interpolate between two EyeStyles."""
+        def lerp(x, y): return x + (y - x) * t
+        def lerp_color(ca, cb):
+            return tuple(int(lerp(ca[i], cb[i])) for i in range(3))
+
+        return EyeStyle(
+            bg_color=lerp_color(a.bg_color, b.bg_color),
+            iris_color=lerp_color(a.iris_color, b.iris_color),
+            pupil_color=lerp_color(a.pupil_color, b.pupil_color),
+            iris_radius=int(lerp(a.iris_radius, b.iris_radius)),
+            pupil_radius=int(lerp(a.pupil_radius, b.pupil_radius)),
+            top_lid=lerp(a.top_lid, b.top_lid),
+            bottom_lid=lerp(a.bottom_lid, b.bottom_lid),
+            brow_angle=lerp(a.brow_angle, b.brow_angle),
+            pupil_offset=(
+                int(lerp(a.pupil_offset[0], b.pupil_offset[0])),
+                int(lerp(a.pupil_offset[1], b.pupil_offset[1])),
+            ),
+            highlight=b.highlight,
+            blink_interval=b.blink_interval,
+            blink_speed=b.blink_speed,
+        )
 
     # ------------------------------------------------------------------
     # Internal: eye drawing
     # ------------------------------------------------------------------
 
-    def _draw_eye(self, close_ratio: float) -> Image.Image:
+    def _draw_eye(self, style: EyeStyle, extra_close: float = 0.0) -> Image.Image:
         """
-        Draw a single eye.
-        close_ratio: 0.0 = fully open, 1.0 = fully closed.
+        Draw eye using the given EyeStyle.
+        extra_close: additional eyelid closure for blink animation (0-1).
         """
-        img = Image.new("RGB", (WIDTH, HEIGHT), (20, 20, 30))
+        img = Image.new("RGB", (WIDTH, HEIGHT), style.bg_color)
         draw = ImageDraw.Draw(img)
 
-        cx, cy = WIDTH // 2, HEIGHT // 2
+        ir = style.iris_radius
+        pr = style.pupil_radius
+        ox, oy = style.pupil_offset
 
         # Iris
-        iris_r = 70
         draw.ellipse(
-            (cx - iris_r, cy - iris_r, cx + iris_r, cy + iris_r),
-            fill=(30, 120, 220),
+            (CX - ir, CY - ir, CX + ir, CY + ir),
+            fill=style.iris_color,
         )
 
         # Pupil
-        pupil_r = 35
         draw.ellipse(
-            (cx - pupil_r, cy - pupil_r, cx + pupil_r, cy + pupil_r),
-            fill=(10, 10, 10),
+            (CX + ox - pr, CY + oy - pr, CX + ox + pr, CY + oy + pr),
+            fill=style.pupil_color,
         )
 
         # Specular highlight
-        draw.ellipse((cx + 15, cy - 30, cx + 30, cy - 15), fill=(255, 255, 255))
+        if style.highlight:
+            draw.ellipse(
+                (CX + 15, CY - 30, CX + 30, CY - 15),
+                fill=(255, 255, 255),
+            )
 
-        # Eyelids — top and bottom grow toward center as close_ratio increases
-        eyelid_travel = int(iris_r * 1.4 * close_ratio)
-        margin = 10
+        # Eyelids
+        margin = 8
+        top_close    = style.top_lid + extra_close
+        bottom_close = style.bottom_lid + extra_close
+
+        top_travel    = int(ir * 1.5 * top_close)
+        bottom_travel = int(ir * 1.5 * bottom_close)
 
         # Top eyelid
         draw.ellipse(
-            (margin, margin - eyelid_travel,
-             WIDTH - margin, cy + eyelid_travel),
-            fill=(20, 20, 30),
+            (margin, margin - top_travel,
+             WIDTH - margin, CY + top_travel),
+            fill=style.bg_color,
         )
+
         # Bottom eyelid
         draw.ellipse(
-            (margin, cy - eyelid_travel,
-             WIDTH - margin, HEIGHT - margin + eyelid_travel),
-            fill=(20, 20, 30),
+            (margin, CY - bottom_travel,
+             WIDTH - margin, HEIGHT - margin + bottom_travel),
+            fill=style.bg_color,
         )
 
-        return img
+        # Angry / focused brow (diagonal line across top eyelid)
+        if style.brow_angle > 0:
+            brow_drop = int(style.brow_angle * 40)
+            draw.polygon(
+                [
+                    (margin, margin),
+                    (CX, margin + brow_drop),
+                    (CX, margin),
+                ],
+                fill=style.bg_color,
+            )
 
-    def _build_blink_frames(self) -> list[Image.Image]:
-        """Generate close + open frames for a blink."""
-        steps = [0.0, 0.2, 0.5, 0.8, 1.0, 0.8, 0.5, 0.2, 0.0]
-        return [self._draw_eye(r) for r in steps]
+        return img
 
     # ------------------------------------------------------------------
     # Internal: SPI / display init

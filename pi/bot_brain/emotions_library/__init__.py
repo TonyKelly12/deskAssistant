@@ -1,5 +1,14 @@
-"""Named expressions / states for the bot face or LEDs."""
+"""Named expressions / states for the bot brain."""
 
-from emotions_library.catalog import EMOTIONS, list_emotions
+from emotions_library.catalog import ALL_EMOTIONS, EMOTIONS, EVENTS, FORCED_STATES, list_emotions
+from emotions_library.engine import EmotionEngine, EmotionState
 
-__all__ = ["EMOTIONS", "list_emotions"]
+__all__ = [
+    "ALL_EMOTIONS",
+    "EMOTIONS",
+    "EVENTS",
+    "FORCED_STATES",
+    "list_emotions",
+    "EmotionEngine",
+    "EmotionState",
+]
